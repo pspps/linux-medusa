@@ -84,38 +84,6 @@ int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
 
 
-static int medusa_l1_bprm_check_security (struct linux_binprm *bprm)
-{
-	return 0;
-}
-
-static void medusa_l1_bprm_committing_creds(struct linux_binprm *bprm)
-{
-}
-
-static void medusa_l1_bprm_committed_creds(struct linux_binprm *bprm)
-{
-}
-
-static int medusa_l1_sb_alloc_security(struct super_block *sb)
-{
-	return 0;
-}
-
-static void medusa_l1_sb_free_security(struct super_block *sb)
-{
-}
-
-static int medusa_l1_sb_copy_data(char *orig, char *copy)
-{
-	return 0;
-}
-
-static int medusa_l1_sb_remount(struct super_block *sb, void *data)
-{
-	return 0;
-} 
-
 static int medusa_l1_sb_kern_mount(struct super_block *sb, int flags, void *data)
 {
 	struct dentry *root = sb->s_root;
@@ -127,33 +95,6 @@ static int medusa_l1_sb_kern_mount(struct super_block *sb, int flags, void *data
 	return 0;
 }
 
-static int medusa_l1_sb_show_options(struct seq_file *m, struct super_block *sb)
-{
-	return 0;
-}
-
-static int medusa_l1_sb_statfs(struct dentry *dentry)
-{
-	return 0;
-}
-
-static int medusa_l1_sb_mount(const char *dev_name, const struct path *path, const char *type,
-			unsigned long flags, void *data)
-{
-	return 0;
-}
-
-static int medusa_l1_sb_umount(struct vfsmount *mnt, int flags)
-{
-	return 0;
-}
-
-
-static int medusa_l1_sb_pivotroot(const struct path *old_path, const struct path *new_path)
-{
-	return 0;
-}
-
 static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
 				struct security_mnt_opts *opts,
 								unsigned long kern_flags,
@@ -161,17 +102,6 @@ static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
 {
 	if (unlikely(opts->num_mnt_opts))
 		return -EOPNOTSUPP;
-	return 0;
-}
-
-static int medusa_l1_sb_clone_mnt_opts(const struct super_block *oldsb,
-				struct super_block *newsb)
-{
-	return 0;
-}
-
-static int medusa_l1_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
-{
 	return 0;
 }
 
@@ -290,6 +220,221 @@ static int medusa_l1_inode_readlink(struct dentry *dentry)
 {
 	if (medusa_readlink(dentry) == MED_NO)
 		return -EPERM;
+	return 0;
+}
+
+static int medusa_l1_task_create(unsigned long clone_flags)
+{
+        if(medusa_fork(clone_flags) == MED_NO)
+                return -EPERM;   
+	return 0;
+}
+
+int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
+{
+	struct medusa_l1_task_s* med;
+	struct cred* tmp;
+
+	printk("medusa: init security: %s task\n", current->comm);
+	
+	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
+	
+	if (med == NULL)
+			return -ENOMEM;
+	
+	cred->security = med;
+
+	tmp = (struct cred*) current->cred;
+	current->cred = cred;
+
+	medusa_init_process(current);
+	current->cred = tmp;
+	
+	return 0;
+}
+
+void medusa_l1_cred_free(struct cred *cred)
+{
+	if (cred->security)
+		kfree(cred->security);
+
+	cred->security = NULL;
+}
+
+static int medusa_l1_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
+{
+	struct medusa_l1_task_s* med;
+	
+	if (old->security == NULL || new->security != NULL) {
+		return 0;
+	}
+		
+	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
+
+	if (med == NULL) {
+			return -ENOMEM;
+	}
+
+	memcpy(med, old->security, sizeof(struct medusa_l1_task_s));
+
+	new->security = med;
+	
+	return 0;
+}
+
+static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
+			 int sig, u32 secid)
+{
+    if(medusa_sendsig(sig, info, p) == MED_NO)
+		return -EPERM;
+	return 0;
+}
+
+static int medusa_l1_task_fix_setuid(struct cred *new, const struct cred *old,
+								int flags)
+{
+	return cap_task_fix_setuid(new, old, flags);
+}
+	
+
+static int medusa_l1_inode_setxattr(struct dentry *dentry, const char *name,
+					const void *value, size_t size, int flags)
+{
+	return cap_inode_setxattr(dentry, name, value, size, flags);
+} 
+
+
+static int medusa_l1_inode_removexattr(struct dentry *dentry, const char *name)
+{
+	return cap_inode_removexattr(dentry, name);
+} 
+
+static int medusa_l1_inode_need_killpriv(struct dentry *dentry) 
+{
+	return cap_inode_need_killpriv(dentry);
+}
+
+static int medusa_l1_inode_killpriv(struct dentry *dentry)
+{
+	return cap_inode_killpriv(dentry);
+}
+
+static int medusa_l1_mmap_addr(unsigned long addr) 
+{
+	return cap_mmap_addr(addr);
+}
+
+static int medusa_l1_task_setnice(struct task_struct *p, int nice)
+{
+	return cap_task_setnice(p, nice);
+} 
+
+
+static int medusa_l1_task_setioprio(struct task_struct *p, int ioprio)
+{
+	return cap_task_setioprio(p, ioprio);
+} 
+
+
+
+static int medusa_l1_task_setscheduler(struct task_struct *p)
+{
+	return cap_task_setscheduler(p);
+} 
+
+
+static int medusa_l1_task_prctl(int option, unsigned long arg2,
+						unsigned long arg3, unsigned long arg4,
+						unsigned long arg5)
+{
+	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
+}
+
+//-----------END OF IMPLEMENTED HOOKS----------
+#if 0
+
+static int medusa_l1_mmap_file(struct file *file, unsigned long reqprot, unsigned long prot, unsigned long flags)
+{
+	//printk("medusa: file_mmap called\n");
+	return 0;
+} 
+
+static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
+{
+	return 0;
+	if (medusa_sexec(bprm) == MED_NO)
+		return -EPERM;
+
+	return 0;
+}
+
+static int medusa_l1_bprm_check_security (struct linux_binprm *bprm)
+{
+	return 0;
+}
+
+static void medusa_l1_bprm_committing_creds(struct linux_binprm *bprm)
+{
+}
+
+static void medusa_l1_bprm_committed_creds(struct linux_binprm *bprm)
+{
+}
+
+static int medusa_l1_sb_alloc_security(struct super_block *sb)
+{
+	return 0;
+}
+
+static void medusa_l1_sb_free_security(struct super_block *sb)
+{
+}
+
+static int medusa_l1_sb_copy_data(char *orig, char *copy)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_remount(struct super_block *sb, void *data)
+{
+	return 0;
+} 
+
+static int medusa_l1_sb_show_options(struct seq_file *m, struct super_block *sb)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_statfs(struct dentry *dentry)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_mount(const char *dev_name, const struct path *path, const char *type,
+			unsigned long flags, void *data)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_umount(struct vfsmount *mnt, int flags)
+{
+	return 0;
+}
+
+
+static int medusa_l1_sb_pivotroot(const struct path *old_path, const struct path *new_path)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_clone_mnt_opts(const struct super_block *oldsb,
+				struct super_block *newsb)
+{
+	return 0;
+}
+
+static int medusa_l1_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
+{
 	return 0;
 }
 
@@ -474,67 +619,8 @@ static int medusa_l1_file_receive(struct file *file)
 //	return 0;
 //}
 
-static int medusa_l1_task_create(unsigned long clone_flags)
-{
-        if(medusa_fork(clone_flags) == MED_NO)
-                return -EPERM;   
-	return 0;
-}
-
 static void medusa_l1_task_free(struct task_struct *task)
 {
-}
-
-int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp)
-{
-	struct medusa_l1_task_s* med;
-	struct cred* tmp;
-
-	printk("medusa: init security: %s task\n", current->comm);
-	
-	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
-	
-	if (med == NULL)
-			return -ENOMEM;
-	
-	cred->security = med;
-
-	tmp = (struct cred*) current->cred;
-	current->cred = cred;
-
-	medusa_init_process(current);
-	current->cred = tmp;
-	
-	return 0;
-}
-
-void medusa_l1_cred_free(struct cred *cred)
-{
-	if (cred->security)
-		kfree(cred->security);
-
-	cred->security = NULL;
-}
-
-static int medusa_l1_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
-{
-	struct medusa_l1_task_s* med;
-	
-	if (old->security == NULL || new->security != NULL) {
-		return 0;
-	}
-		
-	med = (struct medusa_l1_task_s*) kmalloc(sizeof(struct medusa_l1_task_s), gfp);
-
-	if (med == NULL) {
-			return -ENOMEM;
-	}
-
-	memcpy(med, old->security, sizeof(struct medusa_l1_task_s));
-
-	new->security = med;
-	
-	return 0;
 }
 
 static void medusa_l1_cred_transfer(struct cred *new, const struct cred *old)
@@ -562,12 +648,6 @@ static int medusa_l1_kernel_module_request(char *kmod_name)
 static int medusa_l1_kernel_module_from_file(struct file *file)
 {
 	return 0;
-}
-
-static int medusa_l1_task_fix_setuid(struct cred *new, const struct cred *old,
-								int flags)
-{
-	return cap_task_fix_setuid(new, old, flags);
 }
 
 static int medusa_l1_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -613,14 +693,6 @@ static int medusa_l1_task_movememory(struct task_struct *p)
 
 static int medusa_l1_task_wait(struct task_struct *p)
 {
-	return 0;
-}
-
-static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
-			 int sig, u32 secid)
-{
-    if(medusa_sendsig(sig, info, p) == MED_NO)
-		return -EPERM;
 	return 0;
 }
 
@@ -705,112 +777,43 @@ static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
 //	}
 //	return 0;
 }
-
-static int medusa_l1_bprm_secureexec(struct linux_binprm *bprm)
-{
-	return 0;
-	if (medusa_sexec(bprm) == MED_NO)
-		return -EPERM;
-
-	return 0;
-}
-	
-
-static int medusa_l1_inode_setxattr(struct dentry *dentry, const char *name,
-					const void *value, size_t size, int flags)
-{
-	return cap_inode_setxattr(dentry, name, value, size, flags);
-} 
-
-
-static int medusa_l1_inode_removexattr(struct dentry *dentry, const char *name)
-{
-	return cap_inode_removexattr(dentry, name);
-} 
-
-static int medusa_l1_inode_need_killpriv(struct dentry *dentry) 
-{
-	return cap_inode_need_killpriv(dentry);
-}
-
-static int medusa_l1_inode_killpriv(struct dentry *dentry)
-{
-	return cap_inode_killpriv(dentry);
-}
-
-static int medusa_l1_mmap_addr(unsigned long addr) 
-{
-	return cap_mmap_addr(addr);
-}
-
-static int medusa_l1_mmap_file(struct file *file, unsigned long reqprot, unsigned long prot, unsigned long flags)
-{
-	//printk("medusa: file_mmap called\n");
-	return 0;
-} 
-
-
-static int medusa_l1_task_setnice(struct task_struct *p, int nice)
-{
-	return cap_task_setnice(p, nice);
-} 
-
-
-static int medusa_l1_task_setioprio(struct task_struct *p, int ioprio)
-{
-	return cap_task_setioprio(p, ioprio);
-} 
-
-
-
-static int medusa_l1_task_setscheduler(struct task_struct *p)
-{
-	return cap_task_setscheduler(p);
-} 
-
-
-static int medusa_l1_task_prctl(int option, unsigned long arg2,
-						unsigned long arg3, unsigned long arg4,
-						unsigned long arg5)
-{
-	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
-}
+#endif
 
 
 static struct security_hook_list medusa_l1_hooks[] = {
-	LSM_HOOK_INIT(bprm_set_creds, medusa_l1_bprm_set_creds),
-	LSM_HOOK_INIT(bprm_check_security, medusa_l1_bprm_check_security),
-	LSM_HOOK_INIT(bprm_secureexec, medusa_l1_bprm_secureexec),
-	LSM_HOOK_INIT(bprm_committing_creds, medusa_l1_bprm_committing_creds),
-	LSM_HOOK_INIT(bprm_committed_creds, medusa_l1_bprm_committed_creds),
+//	LSM_HOOK_INIT(bprm_set_creds, medusa_l1_bprm_set_creds),
+//	LSM_HOOK_INIT(bprm_check_security, medusa_l1_bprm_check_security),
+//	LSM_HOOK_INIT(bprm_secureexec, medusa_l1_bprm_secureexec),
+//	LSM_HOOK_INIT(bprm_committing_creds, medusa_l1_bprm_committing_creds),
+//	LSM_HOOK_INIT(bprm_committed_creds, medusa_l1_bprm_committed_creds),
 
-	LSM_HOOK_INIT(sb_alloc_security, medusa_l1_sb_alloc_security),
-	LSM_HOOK_INIT(sb_free_security, medusa_l1_sb_free_security),
-	LSM_HOOK_INIT(sb_copy_data, medusa_l1_sb_copy_data),
-	LSM_HOOK_INIT(sb_remount, medusa_l1_sb_remount),
+//	LSM_HOOK_INIT(sb_alloc_security, medusa_l1_sb_alloc_security),
+//	LSM_HOOK_INIT(sb_free_security, medusa_l1_sb_free_security),
+//	LSM_HOOK_INIT(sb_copy_data, medusa_l1_sb_copy_data),
+//	LSM_HOOK_INIT(sb_remount, medusa_l1_sb_remount),
 	LSM_HOOK_INIT(sb_kern_mount, medusa_l1_sb_kern_mount),
-	LSM_HOOK_INIT(sb_show_options, medusa_l1_sb_show_options),
-	LSM_HOOK_INIT(sb_statfs, medusa_l1_sb_statfs),
-	LSM_HOOK_INIT(sb_mount, medusa_l1_sb_mount),
-	LSM_HOOK_INIT(sb_umount, medusa_l1_sb_umount),
-	LSM_HOOK_INIT(sb_pivotroot, medusa_l1_sb_pivotroot),
+//	LSM_HOOK_INIT(sb_show_options, medusa_l1_sb_show_options),
+//	LSM_HOOK_INIT(sb_statfs, medusa_l1_sb_statfs),
+//	LSM_HOOK_INIT(sb_mount, medusa_l1_sb_mount),
+//	LSM_HOOK_INIT(sb_umount, medusa_l1_sb_umount),
+//	LSM_HOOK_INIT(sb_pivotroot, medusa_l1_sb_pivotroot),
 	LSM_HOOK_INIT(sb_set_mnt_opts, medusa_l1_sb_set_mnt_opts),
-	LSM_HOOK_INIT(sb_clone_mnt_opts, medusa_l1_sb_clone_mnt_opts),
-	LSM_HOOK_INIT(sb_parse_opts_str, medusa_l1_sb_parse_opts_str),
+//	LSM_HOOK_INIT(sb_clone_mnt_opts, medusa_l1_sb_clone_mnt_opts),
+//	LSM_HOOK_INIT(sb_parse_opts_str, medusa_l1_sb_parse_opts_str),
 	LSM_HOOK_INIT(dentry_init_security, medusa_l1_dentry_init_security),
 
 #ifdef CONFIG_SECURITY_PATH
-		LSM_HOOK_INIT(path_unlink, medusa_l1_path_unlink),
-		LSM_HOOK_INIT(path_mkdir, medusa_l1_path_mkdir),
-		LSM_HOOK_INIT(path_rmdir, medusa_l1_path_rmdir),
-		LSM_HOOK_INIT(path_mknod, medusa_l1_path_mknod),
-		LSM_HOOK_INIT(path_truncate, medusa_l1_path_truncate),
-		LSM_HOOK_INIT(path_symlink, medusa_l1_path_symlink),
-		LSM_HOOK_INIT(path_link, medusa_l1_path_link),
-		LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
-		LSM_HOOK_INIT(path_chmod, medusa_l1_path_chmod),
-		LSM_HOOK_INIT(path_chown, medusa_l1_path_chown),
-		LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
+//		LSM_HOOK_INIT(path_unlink, medusa_l1_path_unlink),
+//		LSM_HOOK_INIT(path_mkdir, medusa_l1_path_mkdir),
+//		LSM_HOOK_INIT(path_rmdir, medusa_l1_path_rmdir),
+//		LSM_HOOK_INIT(path_mknod, medusa_l1_path_mknod),
+//		LSM_HOOK_INIT(path_truncate, medusa_l1_path_truncate),
+//		LSM_HOOK_INIT(path_symlink, medusa_l1_path_symlink),
+//		LSM_HOOK_INIT(path_link, medusa_l1_path_link),
+//		LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
+//		LSM_HOOK_INIT(path_chmod, medusa_l1_path_chmod),
+//		LSM_HOOK_INIT(path_chown, medusa_l1_path_chown),
+//		LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
 #endif
 
 	// LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
@@ -825,72 +828,72 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(inode_mknod, medusa_l1_inode_mknod),
 	LSM_HOOK_INIT(inode_rename, medusa_l1_inode_rename),
 	LSM_HOOK_INIT(inode_readlink, medusa_l1_inode_readlink),
-	LSM_HOOK_INIT(inode_follow_link, medusa_l1_inode_follow_link),
-	LSM_HOOK_INIT(inode_permission, medusa_l1_inode_permission),
-	LSM_HOOK_INIT(inode_setattr, medusa_l1_inode_setattr),
-	LSM_HOOK_INIT(inode_getattr, medusa_l1_inode_getattr),
+//	LSM_HOOK_INIT(inode_follow_link, medusa_l1_inode_follow_link),
+//	LSM_HOOK_INIT(inode_permission, medusa_l1_inode_permission),
+//	LSM_HOOK_INIT(inode_setattr, medusa_l1_inode_setattr),
+//	LSM_HOOK_INIT(inode_getattr, medusa_l1_inode_getattr),
 	LSM_HOOK_INIT(inode_setxattr, medusa_l1_inode_setxattr),
-	LSM_HOOK_INIT(inode_post_setxattr, medusa_l1_inode_post_setxattr),
-	LSM_HOOK_INIT(inode_getxattr, medusa_l1_inode_getxattr),
-	LSM_HOOK_INIT(inode_listxattr, medusa_l1_inode_listxattr),
+//	LSM_HOOK_INIT(inode_post_setxattr, medusa_l1_inode_post_setxattr),
+//	LSM_HOOK_INIT(inode_getxattr, medusa_l1_inode_getxattr),
+//	LSM_HOOK_INIT(inode_listxattr, medusa_l1_inode_listxattr),
 	LSM_HOOK_INIT(inode_removexattr, medusa_l1_inode_removexattr),
 	LSM_HOOK_INIT(inode_need_killpriv, medusa_l1_inode_need_killpriv),
 	LSM_HOOK_INIT(inode_killpriv, medusa_l1_inode_killpriv),
-	LSM_HOOK_INIT(inode_getsecurity, medusa_l1_inode_getsecurity),
-	LSM_HOOK_INIT(inode_setsecurity, medusa_l1_inode_setsecurity),
-	LSM_HOOK_INIT(inode_listsecurity, medusa_l1_inode_listsecurity),
-	LSM_HOOK_INIT(inode_getsecid, medusa_l1_inode_getsecid),
+//	LSM_HOOK_INIT(inode_getsecurity, medusa_l1_inode_getsecurity),
+//	LSM_HOOK_INIT(inode_setsecurity, medusa_l1_inode_setsecurity),
+//	LSM_HOOK_INIT(inode_listsecurity, medusa_l1_inode_listsecurity),
+//	LSM_HOOK_INIT(inode_getsecid, medusa_l1_inode_getsecid),
 
-	LSM_HOOK_INIT(file_permission, medusa_l1_file_permission),
-	LSM_HOOK_INIT(file_alloc_security, medusa_l1_file_alloc_security),
-	LSM_HOOK_INIT(file_free_security, medusa_l1_file_free_security),
-	LSM_HOOK_INIT(file_ioctl, medusa_l1_file_ioctl),
+//	LSM_HOOK_INIT(file_permission, medusa_l1_file_permission),
+//	LSM_HOOK_INIT(file_alloc_security, medusa_l1_file_alloc_security),
+//	LSM_HOOK_INIT(file_free_security, medusa_l1_file_free_security),
+//	LSM_HOOK_INIT(file_ioctl, medusa_l1_file_ioctl),
 	LSM_HOOK_INIT(mmap_addr, medusa_l1_mmap_addr),
-	LSM_HOOK_INIT(mmap_file, medusa_l1_mmap_file),
-	LSM_HOOK_INIT(file_mprotect, medusa_l1_file_mprotect),
-	LSM_HOOK_INIT(file_lock, medusa_l1_file_lock),
-	LSM_HOOK_INIT(file_fcntl, medusa_l1_file_fcntl),
-	LSM_HOOK_INIT(file_set_fowner, medusa_l1_file_set_fowner),
-	LSM_HOOK_INIT(file_send_sigiotask, medusa_l1_file_send_sigiotask),
-	LSM_HOOK_INIT(file_receive, medusa_l1_file_receive),
+//	LSM_HOOK_INIT(mmap_file, medusa_l1_mmap_file),
+//	LSM_HOOK_INIT(file_mprotect, medusa_l1_file_mprotect),
+//	LSM_HOOK_INIT(file_lock, medusa_l1_file_lock),
+//	LSM_HOOK_INIT(file_fcntl, medusa_l1_file_fcntl),
+//	LSM_HOOK_INIT(file_set_fowner, medusa_l1_file_set_fowner),
+//	LSM_HOOK_INIT(file_send_sigiotask, medusa_l1_file_send_sigiotask),
+//	LSM_HOOK_INIT(file_receive, medusa_l1_file_receive),
 
 	//LSM_HOOK_INIT(dentry_open, medusa_l1_dentry_open),
 
 	LSM_HOOK_INIT(task_create, medusa_l1_task_create),
-	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
+//	LSM_HOOK_INIT(task_free, medusa_l1_task_free),
 	// LSM_HOOK_INIT(cred_alloc_blank, medusa_l1_cred_alloc_blank),
 	// LSM_HOOK_INIT(cred_free, medusa_l1_cred_free),
 	LSM_HOOK_INIT(cred_prepare, medusa_l1_cred_prepare),
-	LSM_HOOK_INIT(cred_transfer, medusa_l1_cred_transfer),
-	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
-	LSM_HOOK_INIT(kernel_create_files_as, medusa_l1_kernel_create_files_as),
-	LSM_HOOK_INIT(kernel_module_request, medusa_l1_kernel_module_request),
+//	LSM_HOOK_INIT(cred_transfer, medusa_l1_cred_transfer),
+//	LSM_HOOK_INIT(kernel_act_as, medusa_l1_kernel_act_as),
+//	LSM_HOOK_INIT(kernel_create_files_as, medusa_l1_kernel_create_files_as),
+//	LSM_HOOK_INIT(kernel_module_request, medusa_l1_kernel_module_request),
 	//LSM_HOOK_INIT(kernel_module_from_file, medusa_l1_kernel_module_from_file),
 	LSM_HOOK_INIT(task_fix_setuid, medusa_l1_task_fix_setuid),
-	LSM_HOOK_INIT(task_setpgid, medusa_l1_task_setpgid),
-	LSM_HOOK_INIT(task_getpgid, medusa_l1_task_getpgid),
-	LSM_HOOK_INIT(task_getsid, medusa_l1_task_getsid),
-	LSM_HOOK_INIT(task_getsecid, medusa_l1_task_getsecid),
+//	LSM_HOOK_INIT(task_setpgid, medusa_l1_task_setpgid),
+//	LSM_HOOK_INIT(task_getpgid, medusa_l1_task_getpgid),
+//	LSM_HOOK_INIT(task_getsid, medusa_l1_task_getsid),
+//	LSM_HOOK_INIT(task_getsecid, medusa_l1_task_getsecid),
 	LSM_HOOK_INIT(task_setnice, medusa_l1_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, medusa_l1_task_setioprio),
-	LSM_HOOK_INIT(task_getioprio, medusa_l1_task_getioprio),
-	LSM_HOOK_INIT(task_setrlimit, medusa_l1_task_setrlimit),
+//	LSM_HOOK_INIT(task_getioprio, medusa_l1_task_getioprio),
+//	LSM_HOOK_INIT(task_setrlimit, medusa_l1_task_setrlimit),
 	LSM_HOOK_INIT(task_setscheduler, medusa_l1_task_setscheduler),
-	LSM_HOOK_INIT(task_getscheduler, medusa_l1_task_getscheduler),
-	LSM_HOOK_INIT(task_movememory, medusa_l1_task_movememory),
+//	LSM_HOOK_INIT(task_getscheduler, medusa_l1_task_getscheduler),
+//	LSM_HOOK_INIT(task_movememory, medusa_l1_task_movememory),
 	LSM_HOOK_INIT(task_kill, medusa_l1_task_kill),
-	LSM_HOOK_INIT(task_wait, medusa_l1_task_wait),
+//	LSM_HOOK_INIT(task_wait, medusa_l1_task_wait),
 	LSM_HOOK_INIT(task_prctl, medusa_l1_task_prctl),
-	LSM_HOOK_INIT(task_to_inode, medusa_l1_task_to_inode),
+//	LSM_HOOK_INIT(task_to_inode, medusa_l1_task_to_inode),
 
-	LSM_HOOK_INIT(d_instantiate, medusa_l1_d_instantiate),
+//	LSM_HOOK_INIT(d_instantiate, medusa_l1_d_instantiate),
 
-	LSM_HOOK_INIT(getprocattr, medusa_l1_getprocattr),
-	LSM_HOOK_INIT(setprocattr, medusa_l1_setprocattr),
+//	LSM_HOOK_INIT(getprocattr, medusa_l1_getprocattr),
+//	LSM_HOOK_INIT(setprocattr, medusa_l1_setprocattr),
 
-	LSM_HOOK_INIT(inode_notifysecctx, medusa_l1_inode_notifysecctx),
-	LSM_HOOK_INIT(inode_setsecctx, medusa_l1_inode_setsecctx),
-	LSM_HOOK_INIT(inode_getsecctx, medusa_l1_inode_getsecctx),
+//	LSM_HOOK_INIT(inode_notifysecctx, medusa_l1_inode_notifysecctx),
+//	LSM_HOOK_INIT(inode_setsecctx, medusa_l1_inode_setsecctx),
+//	LSM_HOOK_INIT(inode_getsecctx, medusa_l1_inode_getsecctx),
 };
 
 struct security_hook_list medusa_l1_hooks_special[] = {
