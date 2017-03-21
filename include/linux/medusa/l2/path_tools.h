@@ -1,5 +1,6 @@
 #ifndef PATH_TOOLS_H
 #define PATH_TOOLS_H
+#include <linux/dcache.h>
 
 #define MEDUSA_DENTRY_PTR_TO_INODE_PTR(dentry) ((dentry)->d_inode)
 
@@ -11,6 +12,8 @@
 #define MEDUSA_FILE_PTR_TO_PATH_PTR(file) ((file)->f_file)
 #define MEDUSA_FILE_PTR_TO_DENTRY_PTR(file) MEDUSA_PATH_PTR_TO_DENTRY_PTR(MEDUSA_FILE_PTR_TO_PATH_PTR(file))
 #define MEDUSA_FILE_PTR_TO_FS_PTR(file) MEDUSA_PATH_PTR_TO_FS_PTR(MEDUSA_FILE_PTR_TO_PATH_PTR(file))
+
+#define MEDUSA_PATH_TO_STR(path, buf, buflen) d_absolute_path(path, buf, buflen)
 
 
 #if 0

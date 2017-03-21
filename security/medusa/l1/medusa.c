@@ -339,6 +339,17 @@ static int medusa_l1_task_prctl(int option, unsigned long arg2,
 	return cap_task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
+static int medusa_l1_path_rename(const struct path *p_old_path, struct dentry *p_old_dentry,
+			const struct path *p_new_path, struct dentry *p_new_dentry)
+{
+	struct path old_path = { p_old_path->mnt, p_old_dentry };
+	struct path new_path = { p_new_path->mnt, p_new_dentry };
+
+	if (medusa_rename_path(&old_path, &new_path) == MED_NO)
+		return -EPERM;
+	return 0;
+}
+
 //-----------END OF IMPLEMENTED HOOKS----------
 #if 0
 
@@ -519,17 +530,6 @@ static int medusa_l1_path_symlink(const struct path *dir, struct dentry *dentry,
 static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new_dir,
 			 struct dentry *new_dentry)
 {
-	return 0;
-}
-
-static int medusa_l1_path_rename(const struct path *p_old_path, struct dentry *p_old_dentry,
-			const struct path *p_new_path, struct dentry *p_new_dentry)
-{
-	struct path old_path = { p_old_path->mnt, p_old_dentry };
-	struct path new_path = { p_new_path->mnt, p_new_dentry };
-
-	if (medusa_rename_path(&old_path, &new_path) == MED_NO)
-		return -EPERM;
 	return 0;
 }
 
@@ -804,7 +804,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 //		LSM_HOOK_INIT(path_truncate, medusa_l1_path_truncate),
 //		LSM_HOOK_INIT(path_symlink, medusa_l1_path_symlink),
 //		LSM_HOOK_INIT(path_link, medusa_l1_path_link),
-//		LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
+		LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
 //		LSM_HOOK_INIT(path_chmod, medusa_l1_path_chmod),
 //		LSM_HOOK_INIT(path_chown, medusa_l1_path_chown),
 //		LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),

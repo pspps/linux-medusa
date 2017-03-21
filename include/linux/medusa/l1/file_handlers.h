@@ -27,6 +27,8 @@ extern medusa_answer_t medusa_unlink(struct dentry *dentry);
 extern medusa_answer_t medusa_link(struct dentry *dentry, const char * newname);
 extern medusa_answer_t medusa_rename(struct dentry *dentry, const char * newname);
 
+extern medusa_answer_t medusa_rename_path(struct path *old_path, struct path * new_path);
+
 extern medusa_answer_t medusa_readlink(struct dentry *dentry);
 
 /* the following routines are a support for many of access types,

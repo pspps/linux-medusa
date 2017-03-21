@@ -36,10 +36,17 @@ static medusa_answer_t medusa_do_rename(struct dentry *dentry, const char * newn
 
 medusa_answer_t medusa_rename_path(struct path *old_path, struct path * new_path)
 {
-	while(1)
-	{
-		break;
+	char buf_old[1024], buf_new[1024];
+	char *ptr_old = MEDUSA_PATH_TO_STR(old_path, buf_old, sizeof(buf_old));
+	char *ptr_new = MEDUSA_PATH_TO_STR(new_path, buf_new, sizeof(buf_new));
+
+	if( IS_ERR_OR_NULL(ptr_old) || IS_ERR_OR_NULL(ptr_new) ) {
+		printk(KERN_ERR "Rename can not resolve path\n");
+		return MED_OK;
 	}
+
+	MED_PRINTF(KERN_DEBUG "Try to rename '%s' to '%s'\n", ptr_old, ptr_new);
+
 	return MED_OK;
 }
 
