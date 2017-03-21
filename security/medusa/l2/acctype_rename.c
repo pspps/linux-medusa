@@ -32,37 +32,15 @@ int __init rename_acctype_init(void) {
 }
 
 static medusa_answer_t medusa_do_rename(struct dentry *dentry, const char * newname);
-static medusa_answer_t medusa_do_rename_path(struct path *old_path, struct path * new_path);
 
 
 medusa_answer_t medusa_rename_path(struct path *old_path, struct path * new_path)
 {
-	medusa_answer_t r;
-
-	if (!old_path || IS_ERR(old_path) || MEDUSA_PATH_PTR_TO_DENTRY_PTR(old_path) == NULL || MEDUSA_PATH_PTR_TO_INODE_PTR(old_path) == NULL)
-		return MED_OK;
-
-	if (!new_path || IS_ERR(new_path) || MEDUSA_PATH_PTR_TO_DENTRY_PTR(new_path) == NULL || MEDUSA_PATH_PTR_TO_INODE_PTR(new_path) == NULL)
-		return MED_OK;
-
-	if (!MED_MAGIC_VALID(&task_security(current)) &&
-		process_kobj_validate_task(current) <= 0)
-		return MED_OK;
-
-	if (!MED_MAGIC_VALID(&inode_security(dentry->d_inode)) &&
-			file_kobj_validate_dentry(dentry,NULL) <= 0) {
-		return MED_OK;
+	while(1)
+	{
+		break;
 	}
-	if (!VS_INTERSECT(VSS(&task_security(current)),VS(&inode_security(dentry->d_inode))) ||
-		!VS_INTERSECT(VSW(&task_security(current)),VS(&inode_security(dentry->d_inode)))
-	)
-		return MED_NO;
-#warning FIXME - add target directory checking
-	r = MED_OK;
-	if (MEDUSA_MONITORED_ACCESS_O(rename_access, &inode_security(dentry->d_inode)))
-		r=medusa_do_rename(dentry,newname);
-	MED_MAGIC_INVALIDATE(&inode_security(dentry->d_inode));
-	return r;
+	return MED_OK;
 }
 
 medusa_answer_t medusa_rename(struct dentry *dentry, const char * newname)

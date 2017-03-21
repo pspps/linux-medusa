@@ -522,9 +522,14 @@ static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new
 	return 0;
 }
 
-static int medusa_l1_path_rename(const struct path *old_path, struct dentry *old_dentry,
-			const struct path *new_path, struct dentry *new_dentry)
+static int medusa_l1_path_rename(const struct path *p_old_path, struct dentry *p_old_dentry,
+			const struct path *p_new_path, struct dentry *p_new_dentry)
 {
+	struct path old_path = { p_old_path->mnt, p_old_dentry };
+	struct path new_path = { p_new_path->mnt, p_new_dentry };
+
+	if (medusa_rename_path(&old_path, &new_path) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 
